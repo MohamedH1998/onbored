@@ -1,0 +1,435 @@
+TOKEN read READ
+
+DESCRIPTION >
+  Account Health Score calculation (0-100).
+  Combines: cross-funnel completion, engagement velocity, recency, failed session ratio.
+
+  Weights:
+  - Cross-funnel completion rate: 40%
+  - Engagement velocity: 30%
+  - Time since last activity: 20%
+  - Failed session ratio: 10%
+
+NODE account_cross_funnel_metrics
+DESCRIPTION >
+  Aggregate ALL funnels per account to get overall conversion performance.
+  This is the "cross-funnel completion rate" component.
+SQL >
+  %
+  WITH valid_flows AS (
+    SELECT
+      flow_id,
+      min(timestamp) as first_event,
+      max(timestamp) as last_event
+    FROM events
+    WHERE
+      project_key = {{ String(project_key) }}
+      AND event_type IN ('step_viewed', 'step_completed', 'step_abandoned')
+      AND account_id != 'UNKNOWN'
+      AND account_id != ''
+      AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+      AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+      {% if defined(account_id) %}
+        AND account_id = {{ String(account_id) }}
+      {% end %}
+    GROUP BY flow_id
+    HAVING count(*) > 1 AND dateDiff('second', first_event, last_event) >= 1
+  )
+  SELECT
+    e.account_id,
+    count(DISTINCT e.funnel_slug) AS total_funnels,
+    count(DISTINCT CASE WHEN v.flow_id IS NOT NULL THEN e.flow_id END) AS total_flows_started,
+    count(DISTINCT CASE WHEN e.event_type = 'flow_completed' AND v.flow_id IS NOT NULL THEN e.flow_id END) AS total_flows_completed,
+    CASE
+      WHEN total_flows_started > 0
+      THEN round((total_flows_completed / total_flows_started) * 100, 2)
+      ELSE 0
+    END AS cross_funnel_completion_rate
+  FROM events e
+  LEFT JOIN valid_flows v ON e.flow_id = v.flow_id
+  WHERE
+    e.project_key = {{ String(project_key) }}
+    AND e.account_id != 'UNKNOWN'
+    AND e.account_id != ''
+    AND e.timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+    AND e.timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+    {% if defined(account_id) %}
+      AND e.account_id = {{ String(account_id) }}
+    {% end %}
+  GROUP BY e.account_id
+
+NODE account_engagement_velocity
+DESCRIPTION >
+  Calculate engagement velocity: compare last 7 days vs prior 7 days.
+  Positive velocity = growing engagement, negative = declining.
+  Only counts events from valid flows (>1 event, >=1 sec duration).
+SQL >
+  %
+  WITH
+    valid_flows_current AS (
+      SELECT
+        flow_id,
+        min(timestamp) as first_event,
+        max(timestamp) as last_event
+      FROM events
+      WHERE
+        project_key = {{ String(project_key) }}
+        AND event_type IN ('step_viewed', 'step_completed', 'step_abandoned')
+        AND account_id != 'UNKNOWN'
+        AND account_id != ''
+        AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+        AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+        {% if defined(account_id) %}
+          AND account_id = {{ String(account_id) }}
+        {% end %}
+      GROUP BY flow_id
+      HAVING count(*) > 1 AND dateDiff('second', first_event, last_event) >= 1
+    ),
+    valid_flows_prior AS (
+      SELECT
+        flow_id,
+        min(timestamp) as first_event,
+        max(timestamp) as last_event
+      FROM events
+      WHERE
+        project_key = {{ String(project_key) }}
+        AND event_type IN ('step_viewed', 'step_completed', 'step_abandoned')
+        AND account_id != 'UNKNOWN'
+        AND account_id != ''
+        AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3) - INTERVAL 7 DAY
+        AND timestamp < toDateTime64({{ DateTime(start_date) }}, 3)
+        {% if defined(account_id) %}
+          AND account_id = {{ String(account_id) }}
+        {% end %}
+      GROUP BY flow_id
+      HAVING count(*) > 1 AND dateDiff('second', first_event, last_event) >= 1
+    ),
+    current_period AS (
+      SELECT
+        e.account_id,
+        count(*) AS current_event_count
+      FROM events e
+      INNER JOIN valid_flows_current v ON e.flow_id = v.flow_id
+      WHERE
+        e.project_key = {{ String(project_key) }}
+        AND e.account_id != 'UNKNOWN'
+        AND e.account_id != ''
+        AND e.timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+        AND e.timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+      GROUP BY e.account_id
+    ),
+    prior_period AS (
+      SELECT
+        e.account_id,
+        count(*) AS prior_event_count
+      FROM events e
+      INNER JOIN valid_flows_prior v ON e.flow_id = v.flow_id
+      WHERE
+        e.project_key = {{ String(project_key) }}
+        AND e.account_id != 'UNKNOWN'
+        AND e.account_id != ''
+        AND e.timestamp >= toDateTime64({{ DateTime(start_date) }}, 3) - INTERVAL 7 DAY
+        AND e.timestamp < toDateTime64({{ DateTime(start_date) }}, 3)
+      GROUP BY e.account_id
+    )
+  SELECT
+    COALESCE(c.account_id, p.account_id) AS account_id,
+    COALESCE(c.current_event_count, 0) AS current_event_count,
+    COALESCE(p.prior_event_count, 0) AS prior_event_count,
+    CASE
+      WHEN prior_event_count > 0
+      THEN round(((current_event_count - prior_event_count) / prior_event_count) * 100, 2)
+      WHEN current_event_count > 0
+      THEN 100
+      ELSE 0
+    END AS velocity_change_pct
+  FROM current_period c
+  FULL OUTER JOIN prior_period p
+    ON c.account_id = p.account_id
+
+NODE account_recency
+DESCRIPTION >
+  Calculate days since last activity.
+  More recent activity = healthier account.
+  Only considers events from valid flows (>1 event, >=1 sec duration).
+SQL >
+  %
+  WITH valid_flows AS (
+    SELECT
+      flow_id,
+      min(timestamp) as first_event,
+      max(timestamp) as last_event
+    FROM events
+    WHERE
+      project_key = {{ String(project_key) }}
+      AND event_type IN ('step_viewed', 'step_completed', 'step_abandoned')
+      AND account_id != 'UNKNOWN'
+      AND account_id != ''
+      AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3) - INTERVAL 30 DAY
+      AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+      {% if defined(account_id) %}
+        AND account_id = {{ String(account_id) }}
+      {% end %}
+    GROUP BY flow_id
+    HAVING count(*) > 1 AND dateDiff('second', first_event, last_event) >= 1
+  )
+  SELECT
+    e.account_id,
+    max(e.timestamp) AS last_activity_at,
+    dateDiff('day', max(e.timestamp), now()) AS days_since_last_activity
+  FROM events e
+  INNER JOIN valid_flows v ON e.flow_id = v.flow_id
+  WHERE
+    e.project_key = {{ String(project_key) }}
+    AND e.account_id != 'UNKNOWN'
+    AND e.account_id != ''
+    AND e.timestamp >= toDateTime64({{ DateTime(start_date) }}, 3) - INTERVAL 30 DAY
+    AND e.timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+  GROUP BY e.account_id
+
+NODE account_failed_sessions
+DESCRIPTION >
+  Calculate ratio of sessions that ended in abandonment (dropped at step).
+SQL >
+  %
+  WITH
+    valid_flows AS (
+      SELECT
+        flow_id,
+        min(timestamp) as first_event,
+        max(timestamp) as last_event
+      FROM events
+      WHERE
+        project_key = {{ String(project_key) }}
+        AND event_type IN ('step_viewed', 'step_completed', 'step_abandoned')
+        AND account_id != 'UNKNOWN'
+        AND account_id != ''
+        AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+        AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+      GROUP BY flow_id
+      HAVING count(*) > 1 AND dateDiff('second', first_event, last_event) >= 1
+    ),
+    session_outcomes AS (
+      SELECT
+        e.account_id,
+        e.session_id,
+        max(CASE WHEN e.event_type = 'flow_completed' THEN 1 ELSE 0 END) AS completed,
+        max(CASE WHEN e.event_type = 'flow_started' AND v.flow_id IS NOT NULL THEN 1 ELSE 0 END) AS started
+      FROM events e
+      LEFT JOIN valid_flows v ON e.flow_id = v.flow_id
+      WHERE
+        e.project_key = {{ String(project_key) }}
+        AND e.account_id != 'UNKNOWN'
+        AND e.account_id != ''
+        AND e.timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+        AND e.timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+      GROUP BY e.account_id, e.session_id
+    )
+  SELECT
+    account_id,
+    count(*) AS total_sessions,
+    countIf(started = 1 AND completed = 0) AS failed_sessions,
+    CASE
+      WHEN total_sessions > 0
+      THEN round((failed_sessions / total_sessions) * 100, 2)
+      ELSE 0
+    END AS failed_session_ratio_pct
+  FROM session_outcomes
+  GROUP BY account_id
+
+NODE most_common_blocker
+DESCRIPTION >
+  Identify the most common step where users drop off (primary blocker).
+  Only considers valid flows (>1 event, >=1 sec duration) that were started but not completed.
+SQL >
+  %
+  WITH
+    valid_flows AS (
+      SELECT
+        flow_id,
+        min(timestamp) as first_event,
+        max(timestamp) as last_event
+      FROM events
+      WHERE
+        project_key = {{ String(project_key) }}
+        AND event_type IN ('step_viewed', 'step_completed', 'step_abandoned')
+        AND account_id != 'UNKNOWN'
+        AND account_id != ''
+        AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+        AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+        {% if defined(account_id) %}
+          AND account_id = {{ String(account_id) }}
+        {% end %}
+      GROUP BY flow_id
+      HAVING count(*) > 1 AND dateDiff('second', first_event, last_event) >= 1
+    ),
+    incomplete_flows AS (
+      SELECT DISTINCT v.flow_id
+      FROM valid_flows v
+      INNER JOIN events e ON v.flow_id = e.flow_id
+      WHERE
+        e.event_type = 'flow_started'
+        AND e.project_key = {{ String(project_key) }}
+        AND e.timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+        AND e.timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+      EXCEPT
+      SELECT DISTINCT v.flow_id
+      FROM valid_flows v
+      INNER JOIN events e ON v.flow_id = e.flow_id
+      WHERE
+        e.event_type = 'flow_completed'
+        AND e.project_key = {{ String(project_key) }}
+        AND e.timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+        AND e.timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+    )
+  SELECT
+    e.account_id,
+    e.step_id,
+    count(*) AS dropoff_count
+  FROM events e
+  INNER JOIN incomplete_flows i ON e.flow_id = i.flow_id
+  WHERE
+    e.project_key = {{ String(project_key) }}
+    AND e.account_id != 'UNKNOWN'
+    AND e.account_id != ''
+    AND e.timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+    AND e.timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+    AND e.event_type = 'step_viewed'
+  GROUP BY e.account_id, e.step_id
+  ORDER BY e.account_id, dropoff_count DESC
+
+NODE primary_blocker_per_account
+DESCRIPTION >
+  Select the top blocker per account (step with most dropoffs).
+SQL >
+  %
+  SELECT
+    account_id,
+    argMax(step_id, dropoff_count) AS primary_blocker
+  FROM most_common_blocker
+  GROUP BY account_id
+
+NODE account_health_calculation
+DESCRIPTION >
+  Combine all components and calculate weighted health score (0-100).
+
+  Scoring logic:
+  1. Cross-funnel completion (40 points max): completion_rate * 0.4
+  2. Engagement velocity (30 points max):
+     - velocity >= 50%: 30 points
+     - velocity >= 0%: 15-30 points (scaled)
+     - velocity < 0%: 0-15 points (scaled)
+     - ADJUSTED by quality multiplier: (100 - failed_ratio) / 100
+       (reduces velocity score when sessions are failing)
+  3. Recency (20 points max):
+     - 0-1 days: 20 points
+     - 2-7 days: 15 points
+     - 8-14 days: 10 points
+     - 15-30 days: 5 points
+     - 30+ days: 0 points
+  4. Failed session ratio (10 points max): (100 - failed_ratio) * 0.1
+SQL >
+  %
+  SELECT
+    cfm.account_id AS account_id,
+
+    -- Raw components
+    cfm.cross_funnel_completion_rate,
+    ev.velocity_change_pct AS engagement_velocity_pct,
+    r.days_since_last_activity,
+    fs.failed_session_ratio_pct,
+
+    -- Metadata
+    cfm.total_funnels,
+    fs.total_sessions,
+    r.last_activity_at,
+    pb.primary_blocker,
+
+    -- Weighted score components
+    round(cfm.cross_funnel_completion_rate * 0.4, 2) AS completion_score,
+
+    -- Velocity: engaged = good, failures just reduce ceiling not floor
+    round(
+      CASE
+        WHEN ev.velocity_change_pct >= 50 THEN 30
+        WHEN ev.velocity_change_pct >= 0 THEN 15 + (ev.velocity_change_pct / 50 * 15)
+        ELSE greatest(0, 15 + (ev.velocity_change_pct / 100 * 15))
+      END * (0.6 + (100 - fs.failed_session_ratio_pct) / 250),
+      2
+    ) AS velocity_score,
+
+    -- Recency: epoch = dead, not active
+    CASE
+      WHEN r.last_activity_at < toDateTime('2020-01-01') THEN 0
+      WHEN r.days_since_last_activity <= 1 THEN 20
+      WHEN r.days_since_last_activity <= 7 THEN 15
+      WHEN r.days_since_last_activity <= 14 THEN 10
+      WHEN r.days_since_last_activity <= 30 THEN 5
+      ELSE 0
+    END AS recency_score,
+
+    round((100 - fs.failed_session_ratio_pct) * 0.1, 2) AS session_success_score,
+
+    -- Final health score (0-100)
+    round(
+      completion_score + velocity_score + recency_score + session_success_score,
+      0
+    ) AS health_score,
+
+    -- Risk tier
+    CASE
+      WHEN health_score >= 71 THEN 'healthy'
+      WHEN health_score >= 41 THEN 'at_risk'
+      ELSE 'critical'
+    END AS risk_tier,
+
+    -- Trend direction
+    CASE
+      WHEN ev.velocity_change_pct >= 10 THEN 'up'
+      WHEN ev.velocity_change_pct <= -10 THEN 'down'
+      ELSE 'flat'
+    END AS trend_direction
+
+  FROM account_cross_funnel_metrics cfm
+  LEFT JOIN account_engagement_velocity ev
+    ON cfm.account_id = ev.account_id
+  LEFT JOIN account_recency r
+    ON cfm.account_id = r.account_id
+  LEFT JOIN account_failed_sessions fs
+    ON cfm.account_id = fs.account_id
+  LEFT JOIN primary_blocker_per_account pb
+    ON cfm.account_id = pb.account_id
+
+NODE endpoint
+DESCRIPTION >
+  Final endpoint with filtering, sorting, and pagination applied server-side.
+  This eliminates client-side processing and dramatically reduces data transfer.
+SQL >
+  %
+  SELECT *
+  FROM account_health_calculation
+  {% if defined(risk_tier) and risk_tier != 'all' %}
+    WHERE risk_tier = {{ String(risk_tier) }}
+  {% end %}
+  ORDER BY
+    {% if defined(sort_by) and sort_by == 'last_activity_at' %}
+      {% if defined(sort_order) and sort_order == 'ASC' %}
+        last_activity_at ASC, account_id
+      {% else %}
+        last_activity_at DESC, account_id
+      {% end %}
+    {% else %}
+      {% if defined(sort_order) and sort_order == 'DESC' %}
+        health_score DESC, account_id
+      {% else %}
+        health_score ASC, account_id
+      {% end %}
+    {% end %}
+  {% if defined(limit) %}
+    LIMIT {{ Int32(limit, 50) }}
+  {% end %}
+  {% if defined(offset) %}
+    OFFSET {{ Int32(offset, 0) }}
+  {% end %}
+
+TYPE ENDPOINT

@@ -1,0 +1,73 @@
+TOKEN read READ
+
+NODE get_funnel_dropoffs_by_step
+SQL >
+%
+  WITH ordered_steps AS (
+    SELECT
+      flow_id,
+      funnel_slug,
+      any(session_id) AS session_id,
+      step_id,
+      min(timestamp) AS first_seen_at
+    FROM events
+    WHERE
+      project_key = {{ String(project_key) }}
+      AND funnel_slug = {{ String(funnel_slug) }}
+      AND event_type IN ('step_viewed','step_completed')
+      AND timestamp >= toDateTime64({{ DateTime64(start_date) }}, 3)
+      AND timestamp <= toDateTime64({{ DateTime64(end_date) }}, 3)
+    GROUP BY flow_id, funnel_slug, step_id
+  ),
+
+  ranked_steps AS (
+    SELECT
+      flow_id,
+      funnel_slug,
+      session_id,
+      step_id,
+      first_seen_at,
+      row_number() OVER (PARTITION BY flow_id ORDER BY first_seen_at) AS step_order
+    FROM ordered_steps
+  ),
+
+  flow_summary AS (
+    SELECT
+      flow_id,
+      funnel_slug,
+      any(session_id) AS session_id,
+      argMax(step_id, step_order) AS furthest_step,
+      min(first_seen_at) AS started_at,
+      max(first_seen_at) AS ended_at
+    FROM ranked_steps
+    GROUP BY flow_id, funnel_slug
+  ),
+
+  completed_flows AS (
+    SELECT DISTINCT flow_id
+    FROM events
+    WHERE
+      project_key = {{ String(project_key) }}
+      AND funnel_slug = {{ String(funnel_slug) }}
+      AND event_type = 'flow_completed'
+      AND timestamp >= toDateTime64({{ DateTime64(start_date) }}, 3)
+      AND timestamp <= toDateTime64({{ DateTime64(end_date) }}, 3)
+  )
+
+  SELECT
+    f.flow_id,
+    f.session_id,
+    f.funnel_slug,
+    f.furthest_step AS step_id,
+    f.started_at AS flow_started_at,
+    f.ended_at AS flow_ended_at,
+    dateDiff('second', f.started_at, f.ended_at) AS duration_seconds
+  FROM flow_summary f
+  LEFT JOIN completed_flows c USING(flow_id)
+  WHERE c.flow_id IS NULL
+    AND f.furthest_step = {{ String(step_id) }}
+  ORDER BY f.started_at DESC
+  LIMIT {{ Int(limit, 50) }}
+  OFFSET {{ Int(offset, 0) }}
+
+TYPE ENDPOINT

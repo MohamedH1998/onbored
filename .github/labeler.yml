@@ -1,0 +1,19 @@
+web:
+  - changed-files:
+    - any-glob-to-any-file: 'apps/web/**'
+
+landing:
+  - changed-files:
+    - any-glob-to-any-file: 'apps/landing/**'
+
+worker:
+  - changed-files:
+    - any-glob-to-any-file: 'apps/ingestion-worker/**'
+
+database:
+  - changed-files:
+    - any-glob-to-any-file: 'packages/database/**'
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file: ['**/package.json', 'pnpm-lock.yaml']

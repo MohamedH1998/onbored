@@ -1,0 +1,11 @@
+export { FunnelBuilder } from "./funnel-builder";
+export { StepsSection } from "./steps-section";
+export { ActivationSection } from "./activation-section";
+export { SortableStep } from "./sortable-step";
+export { FunnelContainer } from "./funnel-container";
+export { AutoHeight } from "./auto-height";
+export { ActionButtons } from "./action-buttons";
+export { StatusBadges } from "./status-badges";
+export { useFunnelBuilder } from "@/hooks/use-funnel-builder";
+export type { FunnelData, FunnelStep } from "./types";
+export { normalizeStepKey, isKeyUnique, generateUniqueKey } from "./types";

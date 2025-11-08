@@ -1,0 +1,41 @@
+TOKEN read READ
+
+NODE daily_account_activity
+SQL >
+  %
+  WITH valid_flows AS (
+    SELECT
+      flow_id,
+      min(timestamp) as first_event,
+      max(timestamp) as last_event
+    FROM events
+    WHERE
+      project_key = {{ String(project_key) }}
+      AND event_type IN ('step_viewed', 'step_completed', 'step_abandoned')
+      AND account_id != 'UNKNOWN'
+      AND account_id != ''
+      AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+      AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+    GROUP BY flow_id
+    HAVING count(*) > 1 AND dateDiff('second', first_event, last_event) >= 1
+  )
+  SELECT
+    e.account_id,
+    toDate(e.timestamp) AS date,
+    count(*) AS event_count,
+    count(DISTINCT e.user_id) AS active_users,
+    count(DISTINCT e.session_id) AS session_count,
+    count(DISTINCT CASE WHEN e.event_type = 'flow_started' AND v.flow_id IS NOT NULL THEN e.flow_id END) AS flows_started,
+    count(DISTINCT CASE WHEN e.event_type = 'flow_completed' AND v.flow_id IS NOT NULL THEN e.flow_id END) AS flows_completed
+  FROM events e
+  LEFT JOIN valid_flows v ON e.flow_id = v.flow_id
+  WHERE
+    e.project_key = {{ String(project_key) }}
+    AND e.account_id != 'UNKNOWN'
+    AND e.account_id != ''
+    AND e.timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+    AND e.timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+  GROUP BY e.account_id, date
+  ORDER BY e.account_id, date DESC
+
+TYPE ENDPOINT

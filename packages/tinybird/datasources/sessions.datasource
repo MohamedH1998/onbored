@@ -1,0 +1,18 @@
+TOKEN write append
+
+DESCRIPTION >
+  Session registry: tracks all user sessions with account/user attribution.
+
+SCHEMA >
+    `id` String `json:$.id`,
+    `project_key` String `json:$.project_key`,
+    `account_id` String `json:$.account_id` DEFAULT 'UNKNOWN',
+    `user_id` String `json:$.user_id` DEFAULT 'UNKNOWN',
+    `started_at` DateTime64(3) `json:$.started_at`,
+    `account_traits` Nullable(String) `json:$.account_traits`,
+    `user_traits` Nullable(String) `json:$.user_traits`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(started_at)"
+ENGINE_SORTING_KEY "project_key, account_id, started_at, user_id, id"
+ENGINE_PRIMARY_KEY "project_key, account_id, started_at"

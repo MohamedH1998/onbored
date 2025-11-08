@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "ignore": ["**/eslint.config.*"],
+  "ignoreDependencies": ["eslint", "eslint-config-next", "@eslint/eslintrc"],
+  "workspaces": {
+    ".": {
+      "entry": ["apps/*/!(eslint).config.*", "packages/*/!(eslint).config.*"],
+      "project": ["apps/**/*.{ts,tsx}", "packages/**/*.{ts,tsx}", "!**/eslint.config.*"]
+    }
+  }
+}

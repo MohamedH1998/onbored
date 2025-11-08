@@ -1,0 +1,21 @@
+TOKEN read READ
+
+NODE get_funnel_step_metrics
+SQL >
+  %
+  SELECT
+    step_id as step,
+    COUNT(CASE WHEN event_type = 'step_viewed' THEN 1 END) as views,
+    COUNT(CASE WHEN event_type = 'step_skipped' THEN 1 END) as skips,
+    COUNT(CASE WHEN event_type = 'step_completed' THEN 1 END) as completions
+  FROM events
+  WHERE 
+    project_key = {{ String(project_key) }} AND
+    funnel_slug = {{ String(funnel_slug) }} AND
+  timestamp >= toDateTime64({{ DateTime(start_date) }}, 3) AND
+  timestamp <= toDateTime64({{ DateTime(end_date) }}, 3) AND
+    flow_id IS NOT NULL
+  GROUP BY step_id
+  ORDER BY step_id
+
+TYPE ENDPOINT 

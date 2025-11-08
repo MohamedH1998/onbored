@@ -1,0 +1,19 @@
+{
+  "name": "ingestion-worker",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler build",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20251011.0",
+    "itty-router": "^4.2.2",
+    "pako": "^2.1.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "wrangler": "^4.24.4"
+  }
+}

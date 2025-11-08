@@ -1,0 +1,20 @@
+TOKEN write append
+
+DESCRIPTION >
+  Session replay event stream: raw rrweb events for video playback.
+
+  IMPORTANT: account_id and user_id are NON-NULLABLE with DEFAULT 'UNKNOWN'.
+  Enables fast filtering by account while handling pre-auth sessions.
+
+SCHEMA >
+  `project_key` String `json:$.project_key`,
+  `session_id` String `json:$.session_id`,
+  `account_id` String `json:$.account_id` DEFAULT 'UNKNOWN',
+  `user_id` String `json:$.user_id` DEFAULT 'UNKNOWN',
+  `timestamp` DateTime64(3) `json:$.timestamp`,
+  `event_data` Nullable(String) `json:$.event_data`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(timestamp)"
+ENGINE_SORTING_KEY "project_key, account_id, session_id, timestamp"
+ENGINE_PRIMARY_KEY "project_key, account_id, session_id"

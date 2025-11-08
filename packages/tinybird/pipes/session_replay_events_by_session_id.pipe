@@ -1,0 +1,15 @@
+TOKEN read READ
+
+NODE get_session_replay
+SQL >
+%
+  SELECT
+    session_id,
+    arraySort(x -> x.1, groupArray((timestamp, event_data))) AS replay_events
+  FROM session_replay_events
+  WHERE
+    project_key = {{ String(project_key) }}
+    AND session_id = {{ String(session_id) }}
+  GROUP BY session_id
+
+TYPE ENDPOINT

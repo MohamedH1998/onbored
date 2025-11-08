@@ -1,0 +1,14 @@
+{
+    "host": "https://api.europe-west2.gcp.tinybird.co",
+    "id": "25b7fc44-ed78-4be4-b0bc-8a23a4aff1ac",
+    "name": "staging",
+    "scope": "user",
+    "token": "p.eyJ1IjogIjI1YjdmYzQ0LWVkNzgtNGJlNC1iMGJjLThhMjNhNGFmZjFhYyIsICJpZCI6ICJiMWZlNzYzMC1mZjZjLTQ0M2UtOWUxMC0zYjc1YTc1OTRjN2MiLCAiaG9zdCI6ICJnY3AtZXVyb3BlLXdlc3QyIn0.ux-9hlpJEn4VnWipbqr_JBElbV6HSH66dOV6w54BAH0",
+    "tokens": {
+        "https://api.europe-west2.gcp.tinybird.co": "p.eyJ1IjogIjI1YjdmYzQ0LWVkNzgtNGJlNC1iMGJjLThhMjNhNGFmZjFhYyIsICJpZCI6ICJiMWZlNzYzMC1mZjZjLTQ0M2UtOWUxMC0zYjc1YTc1OTRjN2MiLCAiaG9zdCI6ICJnY3AtZXVyb3BlLXdlc3QyIn0.ux-9hlpJEn4VnWipbqr_JBElbV6HSH66dOV6w54BAH0"
+    },
+    "user_email": "info@withlightning.com",
+    "user_id": "7889a519-b7b7-4f74-ad11-188ea0cf4110",
+    "user_token": "p.eyJ1IjogIjc4ODlhNTE5LWI3YjctNGY3NC1hZDExLTE4OGVhMGNmNDExMCIsICJpZCI6ICI5MTBjNjc5OC1jYjQzLTQ0MDktOTY2ZC1mMDMyZjY2YWRmZjEiLCAiaG9zdCI6ICJnY3AtZXVyb3BlLXdlc3QyIn0.eY31jtOSTd5PDHlPRkvWPsCVEfq1Q9e5ASPW_ECz0mM",
+    "version": "0.0.1.dev256"
+}

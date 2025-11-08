@@ -1,0 +1,8 @@
+{
+    "compilerOptions": {
+      "baseUrl": "."
+    },
+    "extends": "@repo/typescript-config/react-library.json",
+    "include": ["emails", "components", "layout", "constants"],
+    "exclude": ["node_modules"]
+  }

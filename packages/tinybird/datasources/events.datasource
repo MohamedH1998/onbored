@@ -1,0 +1,36 @@
+TOKEN write append
+
+DESCRIPTION >
+  Core event stream for all user/account activity.
+
+  IMPORTANT: Columns in sorting key CANNOT be nullable (Tinybird constraint).
+  - account_id, user_id: NON-NULLABLE with DEFAULT 'UNKNOWN'
+  - funnel_slug: Kept nullable, REMOVED from sorting key
+  - Sorting optimized for: account queries, time-range, user drill-down
+
+  Pre-Auth Strategy:
+  - SDK buffers events until identifyAccount() called
+  - Or sends with account_id='UNKNOWN' and updates later
+  - Queries filter: WHERE account_id != 'UNKNOWN'
+
+SCHEMA >
+    `id` String `json:$.id`,
+    `project_key` String `json:$.project_key`,
+    `account_id` String `json:$.account_id` DEFAULT 'UNKNOWN',
+    `user_id` String `json:$.user_id` DEFAULT 'UNKNOWN',
+    `account_traits` Nullable(String) `json:$.account_traits`,
+    `user_traits` Nullable(String) `json:$.user_traits`,
+    `session_id` String `json:$.session_id`,
+    `flow_id` Nullable(String) `json:$.flow_id`,
+    `funnel_slug` Nullable(String) `json:$.funnel_slug`,
+    `step_id` Nullable(String) `json:$.step_id`,
+    `event_type` LowCardinality(String) `json:$.event_type`,
+    `timestamp` DateTime64(3) `json:$.timestamp`,
+    `url` String `json:$.url`,
+    `referrer` Nullable(String) `json:$.referrer`,
+    `metadata` Nullable(String) `json:$.metadata`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(timestamp)"
+ENGINE_SORTING_KEY "project_key, account_id, timestamp, event_type, user_id, session_id"
+ENGINE_PRIMARY_KEY "project_key, account_id, timestamp"

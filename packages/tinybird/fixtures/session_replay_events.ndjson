@@ -1,0 +1,10 @@
+{"project_key": "project_70", "session_id": "session_8670", "timestamp": "2025-07-19 18:31:06.000", "event_data": null}
+{"project_key": "project_56", "session_id": "session_9456", "timestamp": "2025-07-19 00:38:00.000", "event_data": "{\"action\": \"scroll\", \"page\": \"products\", \"user_id\": 456}"}
+{"project_key": "project_69", "session_id": "session_2669", "timestamp": "2025-07-19 07:24:27.000", "event_data": "{\"action\": \"login\", \"page\": \"checkout\", \"user_id\": 669}"}
+{"project_key": "project_1", "session_id": "session_4401", "timestamp": "2025-07-19 10:48:55.000", "event_data": "{\"action\": \"scroll\", \"page\": \"products\", \"user_id\": 401}"}
+{"project_key": "project_9", "session_id": "session_2009", "timestamp": "2025-07-18 22:02:07.000", "event_data": "{\"action\": \"login\", \"page\": \"checkout\", \"user_id\": 9}"}
+{"project_key": "project_10", "session_id": "session_2610", "timestamp": "2025-07-19 19:45:26.000", "event_data": null}
+{"project_key": "project_2", "session_id": "session_6002", "timestamp": "2025-07-19 14:08:54.000", "event_data": "{\"action\": \"view\", \"page\": \"about\", \"user_id\": 2}"}
+{"project_key": "project_46", "session_id": "session_6746", "timestamp": "2025-07-19 08:36:30.000", "event_data": "{\"action\": \"scroll\", \"page\": \"products\", \"user_id\": 746}"}
+{"project_key": "project_82", "session_id": "session_182", "timestamp": "2025-07-19 11:12:34.000", "event_data": "{\"action\": \"view\", \"page\": \"about\", \"user_id\": 182}"}
+{"project_key": "project_13", "session_id": "session_5813", "timestamp": "2025-07-19 08:12:03.000", "event_data": "{\"action\": \"submit\", \"page\": \"contact\", \"user_id\": 813}"}

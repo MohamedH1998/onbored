@@ -1,0 +1,81 @@
+TOKEN read READ
+
+DESCRIPTION >
+  Drill-down from account to individual users who dropped off.
+
+NODE flow_progress
+DESCRIPTION >
+  Track each flow's progress: how far did it get?
+  We look at step_viewed and step_completed events to determine the furthest step.
+SQL >
+  %
+  SELECT
+    flow_id,
+    account_id,
+    user_id,
+    session_id,
+    funnel_slug,
+    argMax(step_id, timestamp) AS furthest_step,
+    min(timestamp) AS flow_started_at,
+    max(timestamp) AS last_event_at
+  FROM events
+  WHERE
+    project_key = {{ String(project_key) }}
+    AND funnel_slug = {{ String(funnel_slug) }}
+    AND account_id != 'UNKNOWN'
+    AND account_id != ''
+    AND event_type IN ('step_viewed', 'step_completed', 'step_abandoned', 'flow_started')
+    AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+    AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+    {% if defined(account_id) %}
+      AND account_id = {{ String(account_id) }}
+    {% end %}
+  GROUP BY flow_id, account_id, user_id, session_id, funnel_slug
+
+NODE completed_flows
+DESCRIPTION >
+  Identify which flows actually completed.
+  We'll exclude these from the dropoff list.
+SQL >
+  %
+  SELECT DISTINCT flow_id
+  FROM events
+  WHERE
+    project_key = {{ String(project_key) }}
+    AND funnel_slug = {{ String(funnel_slug) }}
+    AND event_type = 'flow_completed'
+    AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+    AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+    {% if defined(account_id) %}
+      AND account_id = {{ String(account_id) }}
+    {% end %}
+
+NODE dropoff_details
+DESCRIPTION >
+  Combine flow progress with completion status.
+  Filter to only incomplete flows that match the specified step.
+SQL >
+  %
+  SELECT
+    fp.account_id,
+    fp.user_id,
+    fp.session_id,
+    fp.flow_id,
+    fp.furthest_step AS dropped_at_step,
+    fp.flow_started_at,
+    fp.last_event_at,
+    dateDiff('second', fp.flow_started_at, fp.last_event_at) AS time_to_dropoff_seconds,
+    dateDiff('hour', fp.last_event_at, now()) AS hours_since_dropoff
+  FROM flow_progress fp
+  LEFT JOIN completed_flows cf ON fp.flow_id = cf.flow_id
+  WHERE
+    cf.flow_id IS NULL
+    {% if defined(step_id) %}
+      AND fp.furthest_step = {{ String(step_id) }}
+    {% end %}
+  ORDER BY
+    fp.last_event_at DESC
+  LIMIT {{ Int32(limit, 100) }}
+  OFFSET {{ Int32(offset, 0) }}
+
+TYPE ENDPOINT

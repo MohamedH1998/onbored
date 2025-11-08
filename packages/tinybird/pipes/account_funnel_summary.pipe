@@ -1,0 +1,84 @@
+TOKEN read READ
+
+DESCRIPTION >
+  Account-level funnel summary: shows ALL accounts and their conversion status.
+
+NODE account_flow_events
+DESCRIPTION >
+  First, aggregate flow-level events per account.
+  Each flow can have multiple events (started, steps, completed).
+  We extract the start/completion timestamps and count unique users.
+SQL >
+  %
+  WITH valid_flows AS (
+    SELECT
+      flow_id,
+      min(timestamp) as first_event,
+      max(timestamp) as last_event
+    FROM events
+    WHERE
+      project_key = {{ String(project_key) }}
+      AND funnel_slug = {{ String(funnel_slug) }}
+      AND event_type IN ('step_viewed', 'step_completed', 'step_abandoned')
+      AND account_id != 'UNKNOWN'
+      AND account_id != ''
+      AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+      AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+      {% if defined(account_id) %}
+        AND account_id = {{ String(account_id) }}
+      {% end %}
+    GROUP BY flow_id
+    HAVING count(*) > 1 AND dateDiff('second', first_event, last_event) >= 1
+  )
+  SELECT
+    e.flow_id,
+    e.account_id,
+    e.funnel_slug,
+    minIf(e.timestamp, e.event_type = 'flow_started') AS started_at,
+    maxIf(e.timestamp, e.event_type = 'flow_completed') AS completed_at,
+    count(DISTINCT e.user_id) AS user_count
+  FROM events e
+  INNER JOIN valid_flows v ON e.flow_id = v.flow_id
+  WHERE
+    e.project_key = {{ String(project_key) }}
+    AND e.funnel_slug = {{ String(funnel_slug) }}
+    AND e.account_id != 'UNKNOWN'
+    AND e.account_id != ''
+    AND e.timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+    AND e.timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+    {% if defined(account_id) %}
+      AND e.account_id = {{ String(account_id) }}
+    {% end %}
+  GROUP BY e.flow_id, e.account_id, e.funnel_slug
+
+NODE account_summary
+DESCRIPTION >
+  Roll up flow events to account level.
+  Calculate conversion rate and average completion time.
+SQL >
+  %
+  SELECT
+    account_id,
+    funnel_slug,
+    countIf(started_at IS NOT NULL) AS flows_started,
+    countIf(completed_at IS NOT NULL AND completed_at >= started_at) AS flows_completed,
+    CASE
+      WHEN flows_started > 0
+      THEN round((flows_completed / flows_started) * 100, 2)
+      ELSE 0
+    END AS conversion_rate_pct,
+    avgIf(
+      toUnixTimestamp64Milli(completed_at) - toUnixTimestamp64Milli(started_at),
+      completed_at IS NOT NULL AND completed_at >= started_at
+    ) AS avg_completion_ms,
+    round(avg_completion_ms / 1000, 2) AS avg_completion_seconds,
+    max(user_count) AS max_concurrent_users,
+    min(started_at) AS first_flow_started_at,
+    max(COALESCE(completed_at, started_at)) AS last_flow_activity_at
+  FROM account_flow_events
+  GROUP BY account_id, funnel_slug
+  ORDER BY
+    conversion_rate_pct ASC,
+    flows_started DESC
+
+TYPE ENDPOINT

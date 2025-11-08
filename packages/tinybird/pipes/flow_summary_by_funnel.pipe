@@ -1,0 +1,74 @@
+TOKEN read READ
+
+DESCRIPTION >
+  Overall funnel summary: total flows started/completed across all accounts.
+
+NODE get_flow_summary_by_funnel
+DESCRIPTION >
+  Aggregate flow start/completion times.
+  Can be filtered by account_id to see a specific account's performance.
+SQL >
+  %
+  WITH valid_flows AS (
+    SELECT
+      flow_id,
+      min(timestamp) as first_event,
+      max(timestamp) as last_event
+    FROM events
+    WHERE
+      project_key = {{ String(project_key) }}
+      AND funnel_slug = {{ String(funnel_slug) }}
+      AND event_type IN ('step_viewed', 'step_completed', 'step_abandoned')
+      AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+      AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+      {% if defined(account_id) %}
+        AND account_id = {{ String(account_id) }}
+      {% end %}
+    GROUP BY flow_id
+    HAVING count(*) > 1 AND dateDiff('second', first_event, last_event) >= 1
+  ),
+  flow_times AS (
+    SELECT
+      e.flow_id,
+      minIf(e.timestamp, e.event_type = 'flow_started') AS started_at,
+      maxIf(e.timestamp, e.event_type = 'flow_completed') AS completed_at,
+      max(e.timestamp) AS last_event_at
+    FROM events e
+    INNER JOIN valid_flows v ON e.flow_id = v.flow_id
+    WHERE
+      e.project_key = {{ String(project_key) }}
+      AND e.funnel_slug = {{ String(funnel_slug) }}
+      AND e.timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+      AND e.timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+      {% if defined(account_id) %}
+        AND e.account_id = {{ String(account_id) }}
+      {% end %}
+    GROUP BY e.flow_id
+  )
+  SELECT
+    countIf(started_at IS NOT NULL) AS started,
+    countIf(completed_at IS NOT NULL AND completed_at >= started_at) AS completed,
+    avgIf(
+      toUnixTimestamp64Milli(completed_at) - toUnixTimestamp64Milli(started_at),
+      completed_at IS NOT NULL AND completed_at >= started_at
+    ) AS avg_completion_ms,
+    round(avg_completion_ms / 1000, 2) AS avg_completion_seconds,
+    avgIf(
+      toUnixTimestamp64Milli(
+        CASE
+          WHEN completed_at IS NOT NULL AND completed_at >= started_at
+          THEN completed_at
+          ELSE last_event_at
+        END
+      ) - toUnixTimestamp64Milli(started_at),
+      started_at IS NOT NULL
+    ) AS avg_time_ms,
+    round(avg_time_ms / 1000, 2) AS avg_time_seconds,
+    CASE
+      WHEN started > 0
+      THEN round((completed / started) * 100, 2)
+      ELSE 0
+    END AS conversion_rate_pct
+  FROM flow_times
+
+TYPE ENDPOINT

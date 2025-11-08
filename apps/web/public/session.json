@@ -1,0 +1,316 @@
+{
+  "sessionId": "803691a9-adc1-4fed-8d31-65d37b3231ec",
+  "projectKey": "pk_19403633-7fc1-4a1f-845a-b5d14212e996",
+  "timestamp": 1751849529852,
+  "events": [
+    {
+      "type": 3,
+      "data": {
+        "source": 0,
+        "texts": [],
+        "attributes": [
+          {
+            "id": 108,
+            "attributes": {
+              "stop-color": "rgba(255,255,255,0.7)"
+            }
+          },
+          {
+            "id": 109,
+            "attributes": {
+              "stop-color": "rgba(255,255,255,0.7)"
+            }
+          },
+          {
+            "id": 110,
+            "attributes": {
+              "stop-color": "rgba(255,255,255,0.7)"
+            }
+          },
+          {
+            "id": 112,
+            "attributes": {
+              "stop-color": "rgba(255,255,255,0.7)"
+            }
+          },
+          {
+            "id": 113,
+            "attributes": {
+              "stop-color": "rgba(255,255,255,0.7)"
+            }
+          }
+        ],
+        "removes": [],
+        "adds": []
+      },
+      "timestamp": 1751849517881
+    },
+    {
+      "type": 3,
+      "data": {
+        "source": 0,
+        "texts": [],
+        "attributes": [
+          {
+            "id": 104,
+            "attributes": {
+              "class": "path0"
+            }
+          },
+          {
+            "id": 105,
+            "attributes": {
+              "class": "path1"
+            }
+          },
+          {
+            "id": 102,
+            "attributes": {
+              "data-next-mark-loading": "true"
+            }
+          },
+          {
+            "id": 101,
+            "attributes": {
+              "data-next-mark-loading": "true"
+            }
+          }
+        ],
+        "removes": [],
+        "adds": []
+      },
+      "timestamp": 1751849517883
+    },
+    {
+      "type": 3,
+      "data": {
+        "source": 0,
+        "texts": [],
+        "attributes": [
+          {
+            "id": 108,
+            "attributes": {
+              "stop-color": "white"
+            }
+          },
+          {
+            "id": 109,
+            "attributes": {
+              "stop-color": "white"
+            }
+          },
+          {
+            "id": 110,
+            "attributes": {
+              "stop-color": "white"
+            }
+          },
+          {
+            "id": 112,
+            "attributes": {
+              "stop-color": "white"
+            }
+          },
+          {
+            "id": 113,
+            "attributes": {
+              "stop-color": "white"
+            }
+          }
+        ],
+        "removes": [],
+        "adds": []
+      },
+      "timestamp": 1751849519050
+    },
+    {
+      "type": 3,
+      "data": {
+        "source": 0,
+        "texts": [],
+        "attributes": [],
+        "removes": [],
+        "adds": [
+          {
+            "parentId": 4,
+            "nextId": null,
+            "node": {
+              "type": 2,
+              "tagName": "script",
+              "attributes": {
+                "charset": "utf-8",
+                "data-webpack": "_N_E:undefined",
+                "src": "http://localhost:3000/_next/static/webpack/webpack.3462c7997f09f857.hot-update.js"
+              },
+              "childNodes": [],
+              "id": 133
+            }
+          }
+        ]
+      },
+      "timestamp": 1751849519056
+    },
+    {
+      "type": 3,
+      "data": {
+        "source": 0,
+        "texts": [],
+        "attributes": [],
+        "removes": [
+          {
+            "parentId": 4,
+            "id": 133
+          }
+        ],
+        "adds": []
+      },
+      "timestamp": 1751849519238
+    },
+    {
+      "type": 3,
+      "data": {
+        "source": 0,
+        "texts": [],
+        "attributes": [
+          {
+            "id": 99,
+            "attributes": {
+              "data-error": "false",
+              "style": {
+                "width": "118.219px"
+              }
+            }
+          }
+        ],
+        "removes": [
+          {
+            "parentId": 118,
+            "id": 119
+          }
+        ],
+        "adds": [
+          {
+            "parentId": 118,
+            "nextId": 124,
+            "node": {
+              "type": 2,
+              "tagName": "div",
+              "attributes": {
+                "data-issues-count-animation": "true",
+                "data-animate": "false"
+              },
+              "childNodes": [],
+              "id": 134
+            }
+          },
+          {
+            "parentId": 134,
+            "nextId": null,
+            "node": {
+              "type": 2,
+              "tagName": "div",
+              "attributes": {
+                "data-issues-count": "true",
+                "data-issues-count-enter": "true"
+              },
+              "childNodes": [],
+              "id": 135
+            }
+          },
+          {
+            "parentId": 135,
+            "nextId": null,
+            "node": {
+              "type": 3,
+              "textContent": "0",
+              "id": 136
+            }
+          },
+          {
+            "parentId": 134,
+            "nextId": 135,
+            "node": {
+              "type": 2,
+              "tagName": "div",
+              "attributes": {
+                "aria-hidden": "true",
+                "data-issues-count-exit": "true"
+              },
+              "childNodes": [],
+              "id": 137
+            }
+          },
+          {
+            "parentId": 137,
+            "nextId": null,
+            "node": {
+              "type": 3,
+              "textContent": "-1",
+              "id": 138
+            }
+          }
+        ]
+      },
+      "timestamp": 1751849519252
+    },
+    {
+      "type": 3,
+      "data": {
+        "source": 0,
+        "texts": [],
+        "attributes": [
+          {
+            "id": 99,
+            "attributes": {
+              "data-error-expanded": "false"
+            }
+          }
+        ],
+        "removes": [
+          {
+            "parentId": 100,
+            "id": 117
+          }
+        ],
+        "adds": []
+      },
+      "timestamp": 1751849519254
+    },
+    {
+      "type": 3,
+      "data": {
+        "source": 0,
+        "texts": [],
+        "attributes": [
+          {
+            "id": 104,
+            "attributes": {
+              "class": "paused"
+            }
+          },
+          {
+            "id": 105,
+            "attributes": {
+              "class": "paused"
+            }
+          },
+          {
+            "id": 102,
+            "attributes": {
+              "data-next-mark-loading": "false"
+            }
+          },
+          {
+            "id": 101,
+            "attributes": {
+              "data-next-mark-loading": "false"
+            }
+          }
+        ],
+        "removes": [],
+        "adds": []
+      },
+      "timestamp": 1751849519844
+    }
+  ]
+}
