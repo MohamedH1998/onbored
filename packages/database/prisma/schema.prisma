@@ -23,6 +23,7 @@ model User {
   accounts           Account[]
   sessions           Session[]
   AccountMembership  AccountMembership[]
+  invitesCreated     Invite[]
 
   @@map("user")
 }
@@ -241,6 +242,7 @@ model Workspace {
   slug            String            @unique
   createdAt       DateTime          @default(now())
   gradient        String            @default("oceanic")
+  isAdminOrg      Boolean           @default(false)
   projects        Project[]
   members         WorkspaceMember[]
   CustomerAccount CustomerAccount[]
@@ -434,4 +436,29 @@ enum InsightType {
   DESIGN_CONFUSION
   UNEXPECTED_PATH
   OTHER
+}
+
+model AppSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Invite {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  status      InviteStatus @default(PENDING)
+  createdById String?
+  createdBy   User?        @relation(fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+  usedAt      DateTime?
+
+  @@index([email, status])
+}
+
+enum InviteStatus {
+  APPROVED
+  REVOKED
+  PENDING
 }

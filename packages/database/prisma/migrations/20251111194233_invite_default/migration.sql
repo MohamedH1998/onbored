@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Invite" ALTER COLUMN "status" SET DEFAULT 'PENDING';

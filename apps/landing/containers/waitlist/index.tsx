@@ -13,7 +13,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { sendEmail } from "@/utils/resend";
+import { submitWaitlistRequest } from "@/utils/actions/waitlist";
 import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
@@ -43,8 +43,14 @@ export default function WaitlistForm() {
         description: "We'll be in touch soon.",
       });
       try {
-        await sendEmail(value.email);
+        const result = await submitWaitlistRequest(value.email);
         setIsLoading(false);
+
+        if (!result.success) {
+          toast.dismiss(optimisticToastId);
+          toast.error(result.error || "Failed to join waitlist");
+          setIsSubmitted(false);
+        }
       } catch (error) {
         setIsSubmitted(false);
         setIsLoading(false);

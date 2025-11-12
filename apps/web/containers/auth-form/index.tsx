@@ -54,7 +54,11 @@ export const AuthForm = () => {
       });
 
       if (error) {
-        toast.error("Failed to send magic link. Please try again.");
+        const errorMessage =
+          error.message ||
+          error.toString?.() ||
+          "Failed to send magic link. Please try again.";
+        toast.error(errorMessage);
         return;
       }
 
@@ -62,7 +66,9 @@ export const AuthForm = () => {
       setEmailSent(true);
       toast.success("Magic link sent! Check your email.");
     } catch (error) {
-      toast.error("Something went wrong");
+      const errorMessage =
+        error instanceof Error ? error.message : "Something went wrong";
+      toast.error(errorMessage);
       console.error(error);
     } finally {
       setIsSending(false);
@@ -75,7 +81,9 @@ export const AuthForm = () => {
         provider: "google",
       });
     } catch (error) {
-      toast.error("Something went wrong");
+      const errorMessage =
+        error instanceof Error ? error.message : "Something went wrong";
+      toast.error(errorMessage);
       console.error(error);
     }
   };
@@ -125,7 +133,7 @@ export const AuthForm = () => {
   return (
     <Card className="border-none bg-transparent">
       <CardHeader className="flex flex-col items-center font-semibold text-lg gap-4">
-        <Image src="/onbored.svg" alt="onbored" width={100} height={100} />
+        <img src="/onbored.svg" alt="onbored" width={100} height={100} />
         <h1 className="text-2xl font-bold">Welcome to OnBored</h1>
       </CardHeader>
       <CardContent className="space-y-4">
