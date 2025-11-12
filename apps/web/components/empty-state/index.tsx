@@ -5,7 +5,6 @@ import { cn } from "@/utils/helpers";
 import { Button } from "@/components/ui/button";
 import { LucideIcon, UserRound } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 interface EmptyStateProps {
   title: string;

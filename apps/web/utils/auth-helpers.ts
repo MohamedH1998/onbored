@@ -181,3 +181,22 @@ export async function hasProjectAccessWithEnvironment(
     return error("Failed to authenticate or retrieve project environment");
   }
 }
+
+/**
+ * Check if a user is a super admin (member of admin workspace)
+ */
+export async function isSuperAdmin(userId: string): Promise<boolean> {
+  try {
+    const member = await db.workspaceMember.findFirst({
+      where: {
+        userId,
+        role: { in: ["OWNER", "ADMIN"] },
+        workspace: { isAdminOrg: true },
+      },
+    });
+    return !!member;
+  } catch (err) {
+    console.error("Error checking super admin status:", err);
+    return false;
+  }
+}

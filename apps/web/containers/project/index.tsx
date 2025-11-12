@@ -1,5 +1,3 @@
-import { FileText } from "lucide-react";
-import { Files, Link } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import FunnelCard from "@/components/funnel-card";
 import React from "react";
@@ -27,7 +25,6 @@ const ProjectContainer = async ({ projectId }: { projectId: string }) => {
           <EmptyState
             title="No Funnels"
             description="You can create a new funnel to get started."
-            icons={[FileText, Link, Files]}
             redirectUrl={`/project/${projectId}/funnel/new`}
             redirectLabel="Create Funnel"
           />

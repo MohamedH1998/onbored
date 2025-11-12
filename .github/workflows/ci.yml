@@ -99,6 +99,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma Client
+        run: pnpm --filter=@repo/database generate
+
       - name: Check for changes
         id: changed
         run: |
