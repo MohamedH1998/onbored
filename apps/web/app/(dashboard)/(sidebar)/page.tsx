@@ -16,7 +16,7 @@ export default async function Page({
   const filters = accountTableSchema.parse(await searchParams);
 
   const projectIdPromise = cookies().then(
-    (cookies) => cookies.get("projectId")?.value ?? "",
+    (cookies) => cookies.get("projectId")?.value ?? ""
   );
 
   return (

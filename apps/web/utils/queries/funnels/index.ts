@@ -5,11 +5,9 @@ import { getCurrentUser, hasProjectAccess } from "@/utils/auth-helpers";
 import z from "zod";
 
 type ActivationRuleInput = {
-  name: string;
-  type: string;
   stepName?: string;
   eventName?: string;
-  conditions?: any;
+  userProfile?: string;
 };
 
 type FunnelInput = {
@@ -23,17 +21,17 @@ type FunnelInput = {
     key: string;
     metadata?: any;
   }>;
-  activationRule?: ActivationRuleInput;
+  activationRules?: ActivationRuleInput[];
 };
 
 export const upsertFunnel = async ({
   funnel,
   projectId,
-  activationRule,
+  activationRules,
 }: {
   funnel: FunnelInput;
   projectId: string;
-  activationRule?: ActivationRuleInput;
+  activationRules?: ActivationRuleInput[];
 }) => {
   try {
     // Validate input
@@ -67,6 +65,8 @@ export const upsertFunnel = async ({
     });
     if (!workspaceMember) throw new Error("Access denied to this project");
 
+    const rulesToUse = activationRules || funnel.activationRules || [];
+
     const result = await db.funnel.upsert({
       where: {
         projectId_name: {
@@ -91,6 +91,15 @@ export const upsertFunnel = async ({
               })),
             }
           : undefined,
+        activationRules: rulesToUse.length > 0
+          ? {
+              create: rulesToUse.map((rule) => ({
+                stepName: rule.stepName ?? undefined,
+                eventName: rule.eventName ?? undefined,
+                userProfile: rule.userProfile ?? undefined,
+              })),
+            }
+          : undefined,
       },
       update: {
         name: funnel.name,
@@ -108,6 +117,14 @@ export const upsertFunnel = async ({
               })),
             }
           : undefined,
+        activationRules: {
+          deleteMany: {},
+          create: rulesToUse.map((rule) => ({
+            stepName: rule.stepName ?? undefined,
+            eventName: rule.eventName ?? undefined,
+            userProfile: rule.userProfile ?? undefined,
+          })),
+        },
       },
     });
 
@@ -155,6 +172,7 @@ export const getFunnel = async ({
       where: { id: parsedFunnelId },
       include: {
         steps: true,
+        activationRules: true,
       },
     });
 
@@ -227,6 +245,7 @@ export const getFunnelWithInsights = async (
       where: { id: funnelId },
       include: {
         steps: true,
+        activationRules: true,
         insights: {
           orderBy: { timestamp: "desc" },
           where: {

@@ -1,18 +1,14 @@
 "use client";
 
-import React, { useMemo } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  FunnelBuilder,
-  useFunnelBuilder,
+  FunnelForm,
+  FunnelFormRef,
   ActionButtons,
-  StatusBadges,
 } from "@/components/funnel-builder";
 import { Funnel, FunnelStep } from "@repo/database";
-import {
-  FunnelData,
-  FunnelStep as FunnelBuilderStep,
-} from "@/components/funnel-builder/types";
+import { FunnelStep as FunnelBuilderStep } from "@/components/funnel-builder/types";
 
 interface FunnelCreationFormProps {
   projectId: string;
@@ -20,50 +16,36 @@ interface FunnelCreationFormProps {
   funnel?: Funnel & { steps: FunnelStep[] };
 }
 
-const transformFunnelData = (
-  funnel: Funnel & { steps: FunnelStep[] },
-): Partial<FunnelData> => {
-  const steps: FunnelBuilderStep[] = funnel.steps
-    .sort((a, b) => a.order - b.order)
-    .map((step) => ({
-      id: step.id,
-      title: step.stepName,
-      order: step.order,
-      key: step.key,
-    }));
-
-  return {
-    name: funnel.name,
-    steps,
-    activation: undefined,
-  };
-};
-
 const FunnelCreationForm = ({
   projectId,
   workspaceMemberId,
   funnel,
 }: FunnelCreationFormProps) => {
-  const initialData = useMemo(() => {
-    return funnel ? transformFunnelData(funnel) : {};
-  }, [funnel]);
+  const funnelFormRef = useRef<FunnelFormRef>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
-  const {
-    funnelData,
-    activeId,
-    setActiveId,
-    isSaving,
-    isPublishing,
-    hasUnsavedChanges,
-    updateSteps,
-    updateName,
-    saveAsDraft,
-    publishFunnel,
-  } = useFunnelBuilder({
-    projectId,
-    workspaceMemberId,
-    initialData,
-  });
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (funnelFormRef.current) {
+        setIsSaving(funnelFormRef.current.isSaving);
+        setIsPublishing(funnelFormRef.current.isPublishing);
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  const initialSteps: FunnelBuilderStep[] = useMemo(() => {
+    if (!funnel) return [];
+    return funnel.steps
+      .sort((a, b) => a.order - b.order)
+      .map((step) => ({
+        id: step.id,
+        title: step.stepName,
+        order: step.order,
+        key: step.key,
+      }));
+  }, [funnel]);
 
   return (
     <div className="w-full space-y-8">
@@ -82,37 +64,19 @@ const FunnelCreationForm = ({
               : "Design a step-by-step flow to guide your users through your process"}
           </p>
         </div>
-        <StatusBadges hasUnsavedChanges={hasUnsavedChanges} size="md" />
       </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="space-y-3"
-      >
-        <label className="text-sm font-medium text-foreground">
-          Funnel Name
-        </label>
-        <input
-          value={funnelData.name}
-          onChange={(e) => updateName(e.target.value)}
-          placeholder="e.g., New User Onboarding, Product Demo Flow, Checkout Process"
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        />
-      </motion.div>
-
-      <FunnelBuilder
-        funnelData={funnelData}
-        onStepsChange={updateSteps}
-        onNameChange={updateName}
-        activeId={activeId as string}
-        onActiveIdChange={setActiveId}
+      <FunnelForm
+        ref={funnelFormRef}
+        projectId={projectId}
+        workspaceMemberId={workspaceMemberId}
+        initialName={funnel?.name ?? ""}
+        initialSteps={initialSteps}
         size="md"
-        showNameInput={false}
+        showNameInput={true}
+        namePlaceholder="e.g., New User Onboarding, Product Demo Flow, Checkout Process"
       />
 
-      {/* Action Buttons */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -120,8 +84,8 @@ const FunnelCreationForm = ({
         className="pt-8 border-t border-border"
       >
         <ActionButtons
-          onSaveDraft={saveAsDraft}
-          onPublish={publishFunnel}
+          onSaveDraft={() => funnelFormRef.current?.saveAsDraft()}
+          onPublish={() => funnelFormRef.current?.publishFunnel()}
           isSaving={isSaving}
           isPublishing={isPublishing}
           size="md"

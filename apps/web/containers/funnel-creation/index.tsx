@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -12,42 +11,32 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  FunnelBuilder,
-  useFunnelBuilder,
-  ActionButtons,
-  StatusBadges,
-} from "@/components/funnel-builder";
+import { FunnelForm, FunnelFormRef } from "@/components/funnel-builder/funnel-form";
+import { ActionButtons } from "@/components/funnel-builder";
 import { useWorkspaceContext } from "@/components/context-provider";
 
 export const FunnelCreationForm = ({
   isOnboarding,
+  defaultOpen = false,
 }: {
   isOnboarding: boolean;
+  defaultOpen?: boolean;
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const { project, workspace } = useWorkspaceContext();
+  const funnelFormRef = useRef<FunnelFormRef>(null);
 
-  const {
-    funnelData,
-    activeId,
-    setActiveId,
-    isSaving,
-    isPublishing,
-    hasUnsavedChanges,
-    updateSteps,
-    updateActivation,
-    updateName,
-    saveAsDraft,
-    publishFunnel,
-  } = useFunnelBuilder({
-    projectId: project?.id ?? "",
-    workspaceMemberId: workspace?.id ?? "",
-    initialData: {
-      name: "Onboarding",
-    },
-    isOnboarding,
-  });
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (funnelFormRef.current) {
+        setIsSaving(funnelFormRef.current.isSaving);
+        setIsPublishing(funnelFormRef.current.isPublishing);
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
@@ -62,10 +51,6 @@ export const FunnelCreationForm = ({
               <div className="space-y-1.5">
                 <AlertDialogTitle className="flex items-center gap-2">
                   Create your first funnel
-                  <StatusBadges
-                    hasUnsavedChanges={hasUnsavedChanges}
-                    size="sm"
-                  />
                 </AlertDialogTitle>
                 <p className="text-sm text-muted-foreground">
                   Add a few steps and choose your activation moment.
@@ -84,25 +69,23 @@ export const FunnelCreationForm = ({
           </AlertDialogHeader>
 
           <div className="flex-1 overflow-y-auto px-6 py-2">
-            <FunnelBuilder
-              funnelData={funnelData}
-              onStepsChange={updateSteps}
-              onActivationChange={updateActivation}
-              onNameChange={updateName}
-              activeId={activeId as string}
-              onActiveIdChange={setActiveId}
+            <FunnelForm
+              ref={funnelFormRef}
+              projectId={project?.id ?? ""}
+              workspaceMemberId={workspace?.id ?? ""}
+              initialName="Onboarding"
+              isOnboarding={isOnboarding}
               size="sm"
               showNameInput={true}
               nameDisabled={true}
               namePlaceholder="Onboarding"
-              isOnboarding={isOnboarding}
             />
           </div>
 
           <AlertDialogFooter className="sticky bottom-0 left-0 right-0 border-t bg-background px-6 py-4">
             <ActionButtons
-              onSaveDraft={saveAsDraft}
-              onPublish={publishFunnel}
+              onSaveDraft={() => funnelFormRef.current?.saveAsDraft()}
+              onPublish={() => funnelFormRef.current?.publishFunnel()}
               isSaving={isSaving}
               isPublishing={isPublishing}
               size="sm"

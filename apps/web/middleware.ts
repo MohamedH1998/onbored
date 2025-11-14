@@ -12,7 +12,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const sessionToken = request.cookies.get("better-auth.session_token");
+  const sessionToken =
+    request.cookies.get("__Secure-better-auth.session_token") ||
+    request.cookies.get("better-auth.session_token");
+
   if (!sessionToken) {
     return NextResponse.redirect(new URL("/sign-in", request.url));
   }
@@ -29,8 +32,9 @@ export async function middleware(request: NextRequest) {
 
   if (!workspaceId || !projectId || !mode) {
     const next = encodeURIComponent(pathname + request.nextUrl.search);
+
     return NextResponse.redirect(
-      new URL(`/api/context?next=${next}`, request.url),
+      new URL(`/api/context?next=${next}`, request.url)
     );
   }
 

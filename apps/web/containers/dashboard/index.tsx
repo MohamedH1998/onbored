@@ -1,11 +1,7 @@
 import React from "react";
 import { AccountTable } from "@/components/account-table";
 import { AccountStatsCards } from "@/components/account-stats-cards";
-import {
-  formatDateRange,
-  parseFilter,
-  parseValidatedDateRange,
-} from "@/utils/helpers";
+import { parseFilter, parseValidatedDateRange } from "@/utils/helpers";
 import { AccountTableSchema } from "@/containers/dashboard/types";
 import { getAccountHealthScores } from "@/utils/queries/accounts/health";
 import { mergeAccountData, filterMergedAccounts } from "@/utils/data-merge";
@@ -64,7 +60,7 @@ export default async function DashboardContainer({
     <div className="flex flex-col gap-8">
       <AccountStatsCards accounts={accounts} />
       <AccountTable data={accounts} count={accounts.length} projectId={id} />
-      <FunnelCreationForm isOnboarding={hasFunnels} />
+      <FunnelCreationForm isOnboarding={!hasFunnels} defaultOpen={!hasFunnels} />
     </div>
   );
 }

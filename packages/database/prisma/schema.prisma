@@ -45,6 +45,7 @@ model Project {
   StepInsight     StepInsight[]
   domain          domain[]
   ProjectAccount  ProjectAccount[]
+  activationRules ActivationRule[]
 
   @@index([workspaceId])
 }
@@ -96,6 +97,7 @@ model Funnel {
   project          Project           @relation(fields: [projectId], references: [id])
   steps            FunnelStep[]
   stepInsights     StepInsight[]
+  activationRules  ActivationRule[]
 
   @@unique([projectId, name])
   @@unique([projectId, slug])
@@ -370,6 +372,23 @@ model domain {
 
   @@unique([projectId, url])
   @@index([projectId])
+}
+
+model ActivationRule {
+  id          String   @id @default(cuid())
+  funnelId    String?
+  funnel      Funnel?  @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stepName    String?
+  eventName   String?
+  userProfile String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([funnelId])
+  @@index([projectId])
+  @@index([userProfile])
 }
 
 enum WorkspaceRole {
