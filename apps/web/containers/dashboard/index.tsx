@@ -7,7 +7,7 @@ import { getAccountHealthScores } from "@/utils/queries/accounts/health";
 import { mergeAccountData, filterMergedAccounts } from "@/utils/data-merge";
 import { getCustomerAccountsByAccountIds } from "@/utils/queries/customer-accounts";
 import { projectHasFunnels } from "@/utils/queries/funnels";
-import FunnelCreationForm from "../funnel-creation";
+import FunnelCreationForm from "../create-funnel";
 
 interface DashboardContainerProps {
   projectId: Promise<string>;

@@ -18,6 +18,7 @@ build
 *.pem
 /.claude/*.md
 *.md
+*.mdc
 
 # debug
 npm-debug.log*

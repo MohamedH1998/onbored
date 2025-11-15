@@ -29,23 +29,17 @@ model User {
 }
 
 model Project {
-  id              String            @id @default(cuid())
-  name            String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  workspaceId     String
-  apiKeys         ApiKey[]
-  Environment     Environment[]
-  FlowInsight     FlowInsight[]
-  FlowPathInsight FlowPathInsight[]
-  funnels         Funnel[]
-  workspace       Workspace         @relation(fields: [workspaceId], references: [id])
-  SessionInsight  SessionInsight[]
-  SessionReplay   SessionReplay[]
-  StepInsight     StepInsight[]
-  domain          domain[]
-  ProjectAccount  ProjectAccount[]
-  activationRules ActivationRule[]
+  id             String           @id @default(cuid())
+  name           String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  workspaceId    String
+  apiKeys        ApiKey[]
+  Environment    Environment[]
+  funnels        Funnel[]
+  workspace      Workspace        @relation(fields: [workspaceId], references: [id])
+  SessionInsight SessionInsight[]
+  ProjectAccount ProjectAccount[]
 
   @@index([workspaceId])
 }
@@ -63,41 +57,36 @@ model Environment {
 }
 
 model ApiKey {
-  id            String          @id @default(cuid())
-  token         String          @unique
-  projectId     String
-  label         String?
-  createdBy     String
-  createdAt     DateTime        @default(now())
-  expiresAt     DateTime?
-  revoked       Boolean         @default(false)
-  lastUsedAt    DateTime?
-  user          User            @relation(fields: [createdBy], references: [id])
-  project       Project         @relation(fields: [projectId], references: [id])
-  environment   Environment[]
-  sessionReplay SessionReplay[]
+  id          String        @id @default(cuid())
+  token       String        @unique
+  projectId   String
+  label       String?
+  createdBy   String
+  createdAt   DateTime      @default(now())
+  expiresAt   DateTime?
+  revoked     Boolean       @default(false)
+  lastUsedAt  DateTime?
+  user        User          @relation(fields: [createdBy], references: [id])
+  project     Project       @relation(fields: [projectId], references: [id])
+  environment Environment[]
 
   @@index([projectId, revoked])
   @@index([createdBy])
 }
 
 model Funnel {
-  id               String            @id @default(cuid())
-  name             String
-  version          String?
-  projectId        String
-  createdAt        DateTime          @default(now())
-  createdById      String
-  updatedAt        DateTime          @updatedAt
-  status           FunnelStatus      @default(DRAFT)
-  slug             String
-  insights         FlowInsight[]
-  flowPathInsights FlowPathInsight[]
-  createdBy        WorkspaceMember   @relation(fields: [createdById], references: [id])
-  project          Project           @relation(fields: [projectId], references: [id])
-  steps            FunnelStep[]
-  stepInsights     StepInsight[]
-  activationRules  ActivationRule[]
+  id          String          @id @default(cuid())
+  name        String
+  version     String?
+  projectId   String
+  createdAt   DateTime        @default(now())
+  createdById String
+  updatedAt   DateTime        @updatedAt
+  status      FunnelStatus    @default(DRAFT)
+  slug        String
+  createdBy   WorkspaceMember @relation(fields: [createdById], references: [id])
+  project     Project         @relation(fields: [projectId], references: [id])
+  steps       FunnelStep[]
 
   @@unique([projectId, name])
   @@unique([projectId, slug])
@@ -116,58 +105,6 @@ model FunnelStep {
 
   @@unique([funnelId, key])
   @@index([funnelId, order])
-}
-
-model StepInsight {
-  id               String   @id @default(cuid())
-  projectId        String
-  stepName         String
-  totalViews       Int
-  totalSkips       Int
-  totalCompletions Int
-  dropOffRate      Float
-  avgDuration      Float
-  timestamp        DateTime @default(now())
-  funnelId         String?
-  funnel           Funnel?  @relation(fields: [funnelId], references: [id])
-  project          Project  @relation(fields: [projectId], references: [id])
-
-  @@index([projectId, stepName])
-}
-
-model FlowInsight {
-  id                String          @id @default(cuid())
-  projectId         String
-  totalStarted      Int
-  totalCompleted    Int
-  avgCompletionTime Float
-  completionRate    Float
-  trendSummary      String?
-  timestamp         DateTime        @default(now())
-  funnelId          String
-  interval          InsightInterval @default(DAILY)
-  intervalEnd       DateTime
-  intervalStart     DateTime
-  funnel            Funnel          @relation(fields: [funnelId], references: [id])
-  project           Project         @relation(fields: [projectId], references: [id])
-
-  @@unique([funnelId, interval, intervalStart])
-  @@index([funnelId])
-}
-
-model FlowPathInsight {
-  id             String   @id @default(cuid())
-  projectId      String
-  path           String[]
-  userCount      Int
-  completionRate Float
-  avgTime        Float
-  updatedAt      DateTime @default(now())
-  funnelId       String?
-  funnel         Funnel?  @relation(fields: [funnelId], references: [id])
-  project        Project  @relation(fields: [projectId], references: [id])
-
-  @@index([projectId])
 }
 
 model Account {
@@ -320,23 +257,6 @@ model WorkspaceMember {
   @@index([workspaceId])
 }
 
-model SessionReplay {
-  id                String   @id @default(cuid())
-  projectId         String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  s3Key             String?
-  eventCount        Int
-  hasFunnelActivity Boolean  @default(false)
-  processed         Boolean  @default(false)
-  onboredSessionId  String
-  apiKeyId          String?
-  apiKey            ApiKey?  @relation(fields: [apiKeyId], references: [id])
-  project           Project  @relation(fields: [projectId], references: [id])
-
-  @@index([projectId, onboredSessionId])
-}
-
 model SessionInsight {
   id                       String      @id @default(cuid())
   sessionId                String
@@ -360,35 +280,6 @@ model SessionInsight {
   @@index([flowId])
   @@index([funnelStep])
   @@index([severity])
-}
-
-model domain {
-  id        String   @id
-  url       String
-  projectId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime
-  Project   Project  @relation(fields: [projectId], references: [id])
-
-  @@unique([projectId, url])
-  @@index([projectId])
-}
-
-model ActivationRule {
-  id          String   @id @default(cuid())
-  funnelId    String?
-  funnel      Funnel?  @relation(fields: [funnelId], references: [id], onDelete: Cascade)
-  projectId   String?
-  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  stepName    String?
-  eventName   String?
-  userProfile String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([funnelId])
-  @@index([projectId])
-  @@index([userProfile])
 }
 
 enum WorkspaceRole {

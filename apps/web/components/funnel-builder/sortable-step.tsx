@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ interface SortableStepProps {
   step: FunnelStep;
   onDelete: (stepId: string) => void;
   onUpdate: (stepId: string, title: string) => void;
+  onEnterPress?: (stepId: string) => void;
+  shouldFocus?: boolean;
   disabled?: boolean;
   isDragging?: boolean;
   size?: "sm" | "md";
@@ -24,12 +26,15 @@ export const SortableStep = ({
   step,
   onDelete,
   onUpdate,
+  onEnterPress,
+  shouldFocus = false,
   disabled = false,
   isDragging = false,
   size = "md",
 }: SortableStepProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(step.title);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const {
     attributes,
@@ -55,14 +60,31 @@ export const SortableStep = ({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter") {
+        e.preventDefault();
         handleSave();
+        if (onEnterPress) {
+          onEnterPress(step.id);
+        }
       } else if (e.key === "Escape") {
         setTitle(step.title);
         setIsEditing(false);
       }
     },
-    [handleSave, step.title]
+    [handleSave, step.title, onEnterPress, step.id]
   );
+
+  useEffect(() => {
+    if (shouldFocus && !isEditing) {
+      setIsEditing(true);
+    }
+  }, [shouldFocus, isEditing]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -102,6 +124,7 @@ export const SortableStep = ({
             <div className="flex-1 min-w-0">
               {isEditing ? (
                 <Input
+                  ref={inputRef}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   onBlur={handleSave}
@@ -110,7 +133,6 @@ export const SortableStep = ({
                     "border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 font-medium",
                     isSmall ? "h-6 px-1 text-xs" : "h-7 px-2 text-sm"
                   )}
-                  autoFocus
                   placeholder="Enter step title..."
                 />
               ) : (

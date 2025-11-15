@@ -21,17 +21,14 @@ type FunnelInput = {
     key: string;
     metadata?: any;
   }>;
-  activationRules?: ActivationRuleInput[];
 };
 
 export const upsertFunnel = async ({
   funnel,
   projectId,
-  activationRules,
 }: {
   funnel: FunnelInput;
   projectId: string;
-  activationRules?: ActivationRuleInput[];
 }) => {
   try {
     // Validate input
@@ -65,8 +62,6 @@ export const upsertFunnel = async ({
     });
     if (!workspaceMember) throw new Error("Access denied to this project");
 
-    const rulesToUse = activationRules || funnel.activationRules || [];
-
     const result = await db.funnel.upsert({
       where: {
         projectId_name: {
@@ -91,15 +86,6 @@ export const upsertFunnel = async ({
               })),
             }
           : undefined,
-        activationRules: rulesToUse.length > 0
-          ? {
-              create: rulesToUse.map((rule) => ({
-                stepName: rule.stepName ?? undefined,
-                eventName: rule.eventName ?? undefined,
-                userProfile: rule.userProfile ?? undefined,
-              })),
-            }
-          : undefined,
       },
       update: {
         name: funnel.name,
@@ -117,14 +103,6 @@ export const upsertFunnel = async ({
               })),
             }
           : undefined,
-        activationRules: {
-          deleteMany: {},
-          create: rulesToUse.map((rule) => ({
-            stepName: rule.stepName ?? undefined,
-            eventName: rule.eventName ?? undefined,
-            userProfile: rule.userProfile ?? undefined,
-          })),
-        },
       },
     });
 
@@ -172,7 +150,6 @@ export const getFunnel = async ({
       where: { id: parsedFunnelId },
       include: {
         steps: true,
-        activationRules: true,
       },
     });
 
@@ -191,7 +168,7 @@ export const getFunnel = async ({
 };
 
 export const projectHasFunnels = async (
-  projectId: string,
+  projectId: string
 ): Promise<boolean> => {
   try {
     const userResult = await getCurrentUser();
@@ -212,82 +189,5 @@ export const projectHasFunnels = async (
     return count > 0;
   } catch (error) {
     return false;
-  }
-};
-
-export const getFunnelWithInsights = async (
-  funnelId: string,
-  projectId: string,
-  from: Date,
-  to: Date,
-): Promise<{
-  success: boolean;
-  data?: any;
-  error?: string;
-}> => {
-  try {
-    const userResult = await getCurrentUser();
-    if (!userResult.success) {
-      return {
-        success: false,
-        error: "Unauthorized",
-        data: undefined,
-      };
-    }
-
-    const user = userResult.data;
-    if (!user) throw new Error("User not found");
-
-    const hasAccess = await hasProjectAccess(user.id, projectId);
-
-    if (!hasAccess) throw new Error("Access denied to this project");
-    const funnel = await db.funnel.findUnique({
-      where: { id: funnelId },
-      include: {
-        steps: true,
-        activationRules: true,
-        insights: {
-          orderBy: { timestamp: "desc" },
-          where: {
-            timestamp: {
-              gte: from,
-              lte: to,
-            },
-          },
-        },
-        stepInsights: {
-          orderBy: { timestamp: "desc" },
-          where: {
-            timestamp: {
-              gte: from,
-              lte: to,
-            },
-          },
-        },
-        flowPathInsights: {
-          orderBy: { updatedAt: "desc" },
-          where: {
-            updatedAt: {
-              gte: from,
-              lte: to,
-            },
-          },
-        },
-      },
-    });
-
-    if (!funnel) throw new Error("Funnel not found");
-
-    return {
-      success: true,
-      data: funnel,
-      error: undefined,
-    };
-  } catch (error: any) {
-    return {
-      success: false,
-      error: error.message || "Failed to get funnel with insights",
-      data: undefined,
-    };
   }
 };
