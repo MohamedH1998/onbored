@@ -1,0 +1,111 @@
+TOKEN read READ
+
+DESCRIPTION >
+  Activation metrics calculation at account level.
+  Tracks events tagged with metadata.activation = true.
+
+  Outputs:
+  - Activated vs non-activated accounts
+  - Activation milestone depth (count of activation events)
+  - First/last activation timestamps
+  - Unique users who triggered activation events
+
+NODE activation_events
+DESCRIPTION >
+  Extract all events where metadata.activation = true.
+  Aggregate at account level with milestone depth.
+SQL >
+  %
+  SELECT
+    account_id,
+    count(*) AS activation_event_count,
+    count(DISTINCT user_id) AS unique_users_activated,
+    min(timestamp) AS first_activation_at,
+    max(timestamp) AS last_activation_at,
+    groupUniqArray(event_type) AS activation_event_types,
+    dateDiff('day', min(timestamp), max(timestamp)) AS activation_span_days
+  FROM events
+  WHERE
+    project_key = {{ String(project_key) }}
+    AND account_id != 'UNKNOWN'
+    AND account_id != ''
+    AND JSONExtractBool(metadata, 'activation') = 1
+    AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+    AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+    {% if defined(account_id) %}
+      AND account_id = {{ String(account_id) }}
+    {% end %}
+  GROUP BY account_id
+
+NODE all_accounts
+DESCRIPTION >
+  Get all accounts in the time period to identify non-activated ones.
+SQL >
+  %
+  SELECT DISTINCT account_id
+  FROM events
+  WHERE
+    project_key = {{ String(project_key) }}
+    AND account_id != 'UNKNOWN'
+    AND account_id != ''
+    AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+    AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+    {% if defined(account_id) %}
+      AND account_id = {{ String(account_id) }}
+    {% end %}
+
+NODE endpoint
+DESCRIPTION >
+  Final output: all accounts with activation status and depth metrics.
+  Non-activated accounts show null values for activation fields.
+SQL >
+  %
+  SELECT
+    a.account_id,
+    COALESCE(ae.activation_event_count, 0) AS activation_milestone_count,
+    COALESCE(ae.unique_users_activated, 0) AS unique_users_activated,
+    ae.first_activation_at,
+    ae.last_activation_at,
+    ae.activation_event_types,
+    ae.activation_span_days,
+    CASE
+      WHEN ae.account_id IS NOT NULL THEN 'activated'
+      ELSE 'not_activated'
+    END AS activation_status,
+    CASE
+      WHEN ae.activation_event_count IS NULL THEN 0
+      WHEN ae.activation_event_count >= 5 THEN 5
+      WHEN ae.activation_event_count >= 3 THEN 3
+      WHEN ae.activation_event_count >= 1 THEN 1
+      ELSE 0
+    END AS activation_tier
+  FROM all_accounts a
+  LEFT JOIN activation_events ae
+    ON a.account_id = ae.account_id
+  ORDER BY
+    {% if defined(sort_by) and sort_by == 'milestone_count' %}
+      {% if defined(sort_order) and sort_order == 'ASC' %}
+        activation_milestone_count ASC, a.account_id
+      {% else %}
+        activation_milestone_count DESC, a.account_id
+      {% end %}
+    {% elif defined(sort_by) and sort_by == 'first_activation' %}
+      {% if defined(sort_order) and sort_order == 'ASC' %}
+        first_activation_at ASC NULLS LAST, a.account_id
+      {% else %}
+        first_activation_at DESC NULLS LAST, a.account_id
+      {% end %}
+    {% else %}
+      activation_status DESC, activation_milestone_count DESC, a.account_id
+    {% end %}
+  {% if defined(activation_status_filter) and activation_status_filter != 'all' %}
+    WHERE activation_status = {{ String(activation_status_filter) }}
+  {% end %}
+  {% if defined(limit) %}
+    LIMIT {{ Int32(limit, 100) }}
+  {% end %}
+  {% if defined(offset) %}
+    OFFSET {{ Int32(offset, 0) }}
+  {% end %}
+
+TYPE ENDPOINT

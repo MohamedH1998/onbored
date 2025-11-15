@@ -309,16 +309,41 @@ SQL >
   FROM most_common_blocker
   GROUP BY account_id
 
+NODE activation_milestones
+DESCRIPTION >
+  Calculate activation milestone count per account.
+  Events tagged with metadata.activation = true indicate activation steps.
+  Higher milestone count correlates with better retention.
+SQL >
+  %
+  SELECT
+    account_id,
+    count(*) AS activation_milestone_count,
+    count(DISTINCT user_id) AS unique_users_activated,
+    min(timestamp) AS first_activation_at
+  FROM events
+  WHERE
+    project_key = {{ String(project_key) }}
+    AND account_id != 'UNKNOWN'
+    AND account_id != ''
+    AND JSONExtractBool(metadata, 'activation') = 1
+    AND timestamp >= toDateTime64({{ DateTime(start_date) }}, 3)
+    AND timestamp <= toDateTime64({{ DateTime(end_date) }}, 3)
+    {% if defined(account_id) %}
+      AND account_id = {{ String(account_id) }}
+    {% end %}
+  GROUP BY account_id
+
 NODE account_health_calculation
 DESCRIPTION >
   Combine all components and calculate weighted health score (0-100).
 
   Scoring logic:
-  1. Cross-funnel completion (40 points max): completion_rate * 0.4
-  2. Engagement velocity (30 points max):
-     - velocity >= 50%: 30 points
-     - velocity >= 0%: 15-30 points (scaled)
-     - velocity < 0%: 0-15 points (scaled)
+  1. Cross-funnel completion (35 points max): completion_rate * 0.35
+  2. Engagement velocity (25 points max):
+     - velocity >= 50%: 25 points
+     - velocity >= 0%: 12.5-25 points (scaled)
+     - velocity < 0%: 0-12.5 points (scaled)
      - ADJUSTED by quality multiplier: (100 - failed_ratio) / 100
        (reduces velocity score when sessions are failing)
   3. Recency (20 points max):
@@ -328,6 +353,11 @@ DESCRIPTION >
      - 15-30 days: 5 points
      - 30+ days: 0 points
   4. Failed session ratio (10 points max): (100 - failed_ratio) * 0.1
+  5. Activation milestone depth (10 points max):
+     - 5+ milestones: 10 points
+     - 3-4 milestones: 7 points
+     - 1-2 milestones: 4 points
+     - 0 milestones: 0 points
 SQL >
   %
   SELECT
@@ -338,22 +368,25 @@ SQL >
     ev.velocity_change_pct AS engagement_velocity_pct,
     r.days_since_last_activity,
     fs.failed_session_ratio_pct,
+    COALESCE(am.activation_milestone_count, 0) AS activation_milestone_count,
+    COALESCE(am.unique_users_activated, 0) AS unique_users_activated,
 
     -- Metadata
     cfm.total_funnels,
     fs.total_sessions,
     r.last_activity_at,
+    am.first_activation_at,
     pb.primary_blocker,
 
     -- Weighted score components
-    round(cfm.cross_funnel_completion_rate * 0.4, 2) AS completion_score,
+    round(cfm.cross_funnel_completion_rate * 0.35, 2) AS completion_score,
 
     -- Velocity: engaged = good, failures just reduce ceiling not floor
     round(
       CASE
-        WHEN ev.velocity_change_pct >= 50 THEN 30
-        WHEN ev.velocity_change_pct >= 0 THEN 15 + (ev.velocity_change_pct / 50 * 15)
-        ELSE greatest(0, 15 + (ev.velocity_change_pct / 100 * 15))
+        WHEN ev.velocity_change_pct >= 50 THEN 25
+        WHEN ev.velocity_change_pct >= 0 THEN 12.5 + (ev.velocity_change_pct / 50 * 12.5)
+        ELSE greatest(0, 12.5 + (ev.velocity_change_pct / 100 * 12.5))
       END * (0.6 + (100 - fs.failed_session_ratio_pct) / 250),
       2
     ) AS velocity_score,
@@ -370,9 +403,17 @@ SQL >
 
     round((100 - fs.failed_session_ratio_pct) * 0.1, 2) AS session_success_score,
 
+    -- Activation milestone depth score
+    CASE
+      WHEN am.activation_milestone_count >= 5 THEN 10
+      WHEN am.activation_milestone_count >= 3 THEN 7
+      WHEN am.activation_milestone_count >= 1 THEN 4
+      ELSE 0
+    END AS activation_score,
+
     -- Final health score (0-100)
     round(
-      completion_score + velocity_score + recency_score + session_success_score,
+      completion_score + velocity_score + recency_score + session_success_score + activation_score,
       0
     ) AS health_score,
 
@@ -399,6 +440,8 @@ SQL >
     ON cfm.account_id = fs.account_id
   LEFT JOIN primary_blocker_per_account pb
     ON cfm.account_id = pb.account_id
+  LEFT JOIN activation_milestones am
+    ON cfm.account_id = am.account_id
 
 NODE endpoint
 DESCRIPTION >
